@@ -1,4 +1,4 @@
-This script is ad-hoc solution for inspecting **MQTT over TLS** traffic. As far as I know Wireshark solves this problem but obtaining TLS master keys from IoT device might be a pain.
+This script is ad-hoc solution for inspecting **MQTT over TLS** traffic. As far as I know Wireshark solves this problem but obtaining TLS master keys from IoT device might be a pain. Also you can log MQTT topics, just uncomment lines at the bottom of the `mqtt_message.py`.
 
 ## Usage
 
