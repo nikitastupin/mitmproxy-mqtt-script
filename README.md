@@ -2,7 +2,7 @@ This script is ad-hoc solution for inspecting **MQTT over TLS** traffic. As far 
 
 ## Usage
 
-Run mitmproxy as `mitmproxy --mode transparent --tcp '.*' -s mqtt_message.py`. Messages will be displayed at the event log (press `shift + e`).
+Run mitmproxy as `mitmproxy --mode transparent --tcp-hosts '.*' -s mqtt_message.py`. Messages will be displayed at the event log (press `shift + e`).
 
 Of course before that you have to prepare a target device and your host running mitmproxy:
 * Install mitmproxy's root certificate on a target device.
