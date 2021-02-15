@@ -265,9 +265,9 @@ def tcp_message(flow: tcp.TCPFlow):
     ctx.log.info(log_message)
 
     # This way we can save topics
-    # if mqtt_message.packet_type == mqtt_message.PUBLISH:
+    # if mqtt_packet.packet_type == mqtt_packet.PUBLISH:
     #     with open("topics.txt", "a") as f:
-    #         f.write(f"{mqtt_message.topic_name}\n")
-    # elif mqtt_message.packet_type == mqtt_message.SUBSCRIBE:
+    #         f.write(f"{mqtt_packet.topic_name}\n")
+    # elif mqtt_packet.packet_type == mqtt_packet.SUBSCRIBE:
     #     with open("topics.txt", "a") as f:
-    #         f.write(f"{mqtt_message.topic_filters}\n")
+    #         f.write(f"{mqtt_packet.topic_filters}\n")
