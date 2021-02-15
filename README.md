@@ -1,8 +1,12 @@
-This script is ad-hoc solution for inspecting **MQTT over TLS** traffic. As far as I know Wireshark solves this problem but obtaining TLS master keys from IoT device might be a pain. Also you can log MQTT topics, just uncomment lines at the bottom of the `plugin.py`.
+This script is ad-hoc solution for inspecting **MQTT over TLS** traffic. 
+
+This is a continuation of work started in [mitmproxy-mqtt-script](https://github.com/nikitastupin/mitmproxy-mqtt-script).
+This fork supports (almost) all MQTT packet types, multiple packets handling, and more.
 
 ## Usage
 
-Run mitmproxy as `mitmproxy --mode transparent --tcp-hosts '.*' -s mqtt_message.py`. Messages will be displayed at the event log (press `shift + e`).
+Run mitmproxy as `mitmproxy --mode transparent --tcp-hosts '.*' -s plugin.py`. Messages will be displayed at the event
+log (press `shift + e`).
 
 Of course before that you have to prepare a target device and your host running mitmproxy:
 * Install mitmproxy's root certificate on a target device.
