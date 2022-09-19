@@ -13,7 +13,7 @@ If server requires x509 client authentication `--set client_certs=cert.pem` mitm
 
 ## Roadmap
 
-- [ ] [Add support for non-HTTP flows to the UI](https://github.com/mitmproxy/mitmproxy/issues/1020).
+- [x] [Add support for non-HTTP flows to the UI](https://github.com/mitmproxy/mitmproxy/issues/1020).
 - [ ] Implement parsing of MQTT packet types other than `CONNECT`, `PUBLISH` and `SUBSCRIBE`.
 - [ ] Add support for MQTT to mitmproxy including interception, modification and replay.
 
