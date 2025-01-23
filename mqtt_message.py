@@ -1,6 +1,5 @@
 from mitmproxy.utils import strutils
-from mitmproxy import ctx
-from mitmproxy import tcp
+from mitmproxy import ctx, http, tcp
 
 import struct
 
@@ -62,7 +61,11 @@ class MQTTControlPacket:
         self.packet_type = self._parse_packet_type()
         self.packet_type_human = self.Names[self.packet_type]
         self.dup, self.qos, self.retain = self._parse_flags()
-        self.remaining_length = self._parse_remaining_length()
+        self.remaining_length, self.total_length = self._parse_remaining_length()
+        if self.total_length > len(packet):
+            # Partial packet, raise BlockingIOError (the Python error than best corresponds to errno EAGAIN)
+            raise BlockingIOError(f'Incomplete MQTT control packet: only {len(packet)} bytes remaining, but header expected {self.total_length}', len(packet))
+        self._packet, self._extra = packet[:self.total_length], packet[self.total_length:]
         # Variable header & Payload
         # http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718024
         # http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718026
@@ -230,7 +233,8 @@ Password: {strutils.bytes_to_escaped_str(self.payload.get('Password', b'None'))}
         return dup, qos, retain
 
     # http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Table_2.4_Size
-    def _parse_remaining_length(self):
+    # Returns (remaining, total): latter includes the fixed header
+    def _parse_remaining_length(self) -> (int, int):
         multiplier = 1
         value = 0
         i = 1
@@ -248,7 +252,7 @@ Password: {strutils.bytes_to_escaped_str(self.payload.get('Password', b'None'))}
 
             i += 1
 
-        return value
+        return value, value + i + 1
 
     # http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Table_2.5_-
     def _parse_packet_identifier(self):
@@ -256,11 +260,14 @@ Password: {strutils.bytes_to_escaped_str(self.payload.get('Password', b'None'))}
         self.packet_identifier = self._packet[offset : offset + 2]
 
 
-def tcp_message(flow: tcp.TCPFlow):
+def tcp_message(flow: tcp.TCPFlow | http.HTTPFlow):
     message = flow.messages[-1]
 
     mqtt_packet = MQTTControlPacket(message.content)
+    dump(mqtt_packet)
 
+
+def dump(mqtt_packet: MQTTControlPacket):
     log_message = mqtt_packet.pprint()
     ctx.log.info(log_message)
 
@@ -271,3 +278,40 @@ def tcp_message(flow: tcp.TCPFlow):
     # elif mqtt_packet.packet_type == mqtt_packet.SUBSCRIBE:
     #     with open("topics.txt", "a") as f:
     #         f.write(f"{mqtt_packet.topic_filters}\n")
+
+
+# Websocket has a perfectly reasonable mechanism to frame protocols
+# layered on top of it (just as TCP does). But Amazon MQTT servers don't use this
+# correctly, so MQTT packets get concatenated and split across Webscoket
+# messages and need to be reassembled.
+ws_buffer: dict[str, bytes] = {}
+
+
+def websocket_start(flow: http.HTTPFlow):
+    global ws_buffer
+    ws_buffer[flow.id] = b''
+
+
+def websocket_end(flow: http.HTTPFlow):
+    global ws_buffer
+    if (b := ws_buffer.pop(flow.id)):
+        ctx.log.warn(f"{len(b)} bytes of partial MQTT packet left on disconnection: {b.hex()}")
+
+
+def websocket_message(flow: http.HTTPFlow):
+    global ws_buffer
+    assert flow.websocket
+    fid = flow.id
+
+    ws_buffer[fid] += flow.websocket.messages[-1].content
+    while ws_buffer[fid]:
+        try:
+            mqtt_packet = MQTTControlPacket(ws_buffer[fid])
+        except BlockingIOError as exc:
+            ctx.log.debug("Awaiting more bytes for complete MQTT control packet")
+            break
+        else:
+            dump(mqtt_packet)
+            b = ws_buffer[fid] = mqtt_packet._extra
+            if b:
+                ctx.log.debug(f'Saving remaining {len(b)} bytes after MQTT control packet')
